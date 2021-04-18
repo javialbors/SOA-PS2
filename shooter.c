@@ -30,7 +30,13 @@ int main(int argc, char **argv) {
 			if (fd > 0) {
 				
 				if (FAT_info(fd)) {
+
 				} else {
+					if (EXT2_info(fd)) {
+
+					} else {
+						write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
+					}
 				}
 			}
 		break;
