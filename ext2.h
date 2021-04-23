@@ -12,6 +12,11 @@
 #define SUPERBLOCK 1024
 #define MAGIC_NUMBER 0xEF53
 
-int EXT2_info(int fd);
+enum {
+	EXT_SHOW = 1,
+	EXT_CHECK = 2
+};
+
+int EXT2_info(int fd, int flag);
 
 #endif

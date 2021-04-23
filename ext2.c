@@ -14,7 +14,9 @@ char * unixt_to_date(uint32_t time) {
 	return timeformat;
 }
 
-int EXT2_info(int fd) {
+int EXT2_info(int fd, int flag) {
+	
+	if (lseek(fd, 0, SEEK_CUR) == -1) return 0;
 	
 	char filesystem[5];
 	char inodes_count[11];
@@ -39,6 +41,11 @@ int EXT2_info(int fd) {
 	read(fd, &fs, 2);
 
 	if (fs != MAGIC_NUMBER) return 0;
+	
+	if (flag != EXT_SHOW) {
+		close(fd);
+		return 1;
+	}
 
 	strcpy(filesystem, "EXT2");
 
@@ -116,7 +123,7 @@ int EXT2_info(int fd) {
 	lseek(fd, SUPERBLOCK + 64, SEEK_SET);
 	read(fd, &lc, 4);
 	last_check = unixt_to_date(lc);
-
+	
 	write(1, "\n------ Filesystem Information ------\n\n", strlen("\n------ Filesystem Information ------\n\n"));
 	
 	write(1, "Filesystem: ", strlen("Filesystem: "));
@@ -158,7 +165,7 @@ int EXT2_info(int fd) {
 	write(1, "\nLast write: ", strlen("\nLast write: "));
 	write(1, last_write, strlen(last_write));
 
-	write(1, "\n", 1);
+	write(1, "\n\n", 2);
 
 	close(fd);
 
