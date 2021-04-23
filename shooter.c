@@ -7,36 +7,67 @@
 #include "fat16.h"
 #include "ext2.h"
 
+int check_args(int input_args, int num_args);
 int command_value(char *input_command);
 int file_exists(char *filename);
 
 int main(int argc, char **argv) {
 	
-	if (argc < 3) {
+	if (argc < 2) {
 		write(1, "ERROR - Too few arguments\n", strlen("ERROR - Too few arguments\n"));
-		return -1;
-	}
-
-	if (argc > 3) {
-		write(1, "ERROR - Too many arguments\n", strlen("ERROR - Too many arguments\n"));
 		return -1;
 	}
 
 	switch (command_value(argv[1])) {
 		
+		//info command
 		case 0:;
+
+			if (check_args(argc, 1)) {
+				if (check_args(argc, 1) == -1) {
+					write(1, "ERROR - Too few arguments for command '/info'.\n", strlen("ERROR - Too few arguments for command '/info'.\n"));
+					write(1, "Usage:\n\t'shooter /info [file_system]'\n\n", strlen("Usage:\n\t'shooter /info [file_system]'\n\n"));
+				} else {
+					write(1, "ERROR - Too many arguments for command '/info'.\n", strlen("ERROR - Too many arguments for command '/info'.\n"));
+					write(1, "Usage:\n\t'shooter /info [file_system]'\n\n", strlen("Usage:\n\t'shooter /info [file_system]'\n\n"));
+				}
+
+				break;
+			}
 			
 			int fd = file_exists(argv[2]);
-			if (fd > 0) {
-				
-				if (FAT_info(fd)) {
 
+			if (fd != -1) {
+				if (FAT_info(fd, FAT_SHOW)); 
+				else {
+					if (EXT2_info(fd, EXT_SHOW)); 
+					else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
+				}
+			}
+		break;
+
+		//find command
+		case 1:;
+			
+			if (check_args(argc, 2)) {
+				if (check_args(argc, 2) == -1) {
+					write(1, "ERROR - Too few arguments for command '/find'.\n", strlen("ERROR - Too few arguments for command '/find'.\n"));
+					write(1, "Usage:\n\t'shooter /info [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /info [file_system] [file_name]'\n\n"));
 				} else {
-					if (EXT2_info(fd)) {
+					write(1, "ERROR - Too many arguments for command '/info'.\n", strlen("ERROR - Too many arguments for command '/info'.\n"));
+					write(1, "Usage:\n\t'shooter /info [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /info [file_system] [file_name]'\n\n"));
+				}
 
-					} else {
-						write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
-					}
+				break;
+			}
+
+			int fd2 = file_exists(argv[2]);
+
+			if (fd2 != -1) {
+				if (FAT_info(fd2, FAT_CHECK));
+				else {
+					if (EXT2_info(fd2, EXT_CHECK));
+					else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
 				}
 			}
 		break;
@@ -54,9 +85,16 @@ int main(int argc, char **argv) {
 	return 0;
 }
 
+int check_args(int input_args, int num_args) {
+	if (input_args < num_args+2) return -1;
+	if (input_args > num_args+2) return 1;
+	return 0;
+}
+
 int command_value(char *input_command) {
 
 	if (!strcmp(input_command, "/info")) return 0;
+	if (!strcmp(input_command, "/find")) return 1;
 
 	return -1;
 }
@@ -71,6 +109,8 @@ int file_exists (char *filename) {
 		sprintf(buffer, "ERROR - File '%s' could not be opened\n", filename);
 
 		write(1, buffer, strlen(buffer));
+
+		return -1;
 	}
 
 	return fd;

@@ -1,7 +1,7 @@
 #include "fat16.h"
 #include <stdlib.h>
 
-int FAT_info(int fd) {
+int FAT_info(int fd, int flag) {
 
 	if (lseek(fd, 0, SEEK_CUR) == -1) return 0;
 
@@ -20,6 +20,11 @@ int FAT_info(int fd) {
 	filesystem[8] = '\0';
 		
 	if (!(filesystem[0] == 'F' && filesystem[1] == 'A' && filesystem[2] == 'T')) return 0;
+	
+	if (flag != FAT_SHOW) {
+		close(fd);
+		return 1;
+	}
 
 	lseek(fd, 3, SEEK_SET);
     read(fd, system_name, 8);
@@ -78,7 +83,7 @@ int FAT_info(int fd) {
     write(1, sectors_per_fat, strlen(sectors_per_fat));
     write(1, "\nLabel: ", strlen("\nLabel: "));
     write(1, label, strlen(label));
-    write(1, "\n", 1);
+    write(1, "\n\n", 2);
 
     close(fd);
 
