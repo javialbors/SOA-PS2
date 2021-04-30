@@ -38,9 +38,11 @@ int main(int argc, char **argv) {
 			int fd = file_exists(argv[2]);
 
 			if (fd != -1) {
-				if (FAT_info(fd, FAT_SHOW)); 
+				fat_info fat = FAT_info(fd, FAT_SHOW);
+
+				if (!fat.error) close(fd);
 				else {
-					if (EXT2_info(fd, EXT_SHOW)); 
+					if (EXT2_info(fd, EXT_SHOW)) close(fd); 
 					else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
 				}
 			}
@@ -64,7 +66,11 @@ int main(int argc, char **argv) {
 			int fd2 = file_exists(argv[2]);
 
 			if (fd2 != -1) {
-				if (FAT_info(fd2, FAT_CHECK));
+				fat_info fat = FAT_info(fd2, FAT_CHECK);
+				if (!fat.error) {
+					FAT_find(fd2, fat, argv[3]);
+					close(fd2);
+				}
 				else {
 					if (EXT2_info(fd2, EXT_CHECK));
 					else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
