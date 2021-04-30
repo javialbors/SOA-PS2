@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 enum {
 	FAT_SHOW = 1,

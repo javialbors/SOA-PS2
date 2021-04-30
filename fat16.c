@@ -1,5 +1,4 @@
 #include "fat16.h"
-#include <stdlib.h>
 
 void FAT_find(int fd, fat_info info, char *filename) {
 	int base_offset = (info.reserved + (info.nfats * info.sectors_per_fat)) * info.sector_size;
