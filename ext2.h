@@ -44,7 +44,7 @@ typedef struct {
 }ext_info;
 
 void EXT2_find(int fd, ext_info info, char *filename, int inode);
-int EXT2_deep_find(int fd, ext_info info, char *filename, int inode, int level);
+int EXT2_deep_find(int fd, ext_info info, char *filename, int inode);
 uint32_t get_inode_size(int fd, ext_info info, int inode);
 ext_info EXT2_info(int fd, int flag);
 char * unixt_to_date(uint32_t time);

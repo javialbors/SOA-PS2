@@ -1,12 +1,12 @@
 #include "ext2.h"
 
 void EXT2_find(int fd, ext_info info, char *filename, int inode) {
-	if (!EXT2_deep_find(fd, info, filename, inode, 0)) {
+	if (!EXT2_deep_find(fd, info, filename, inode)) {
 		write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
 	}
 }
 
-int EXT2_deep_find(int fd, ext_info info, char *filename, int inode, int level) {
+int EXT2_deep_find(int fd, ext_info info, char *filename, int inode) {
 	
 	int block_group = (inode-1) / info.inodes_per_group;
 	int inode_index = (inode-1) % info.inodes_per_group;
@@ -60,7 +60,7 @@ int EXT2_deep_find(int fd, ext_info info, char *filename, int inode, int level) 
 			}
 		} else if (filetype == EXT2_FT_DIR) {
 			if (strcmp(name, ".") && strcmp(name, "..")) {
-				if (EXT2_deep_find(fd, info, filename, ind, level+1)) {
+				if (EXT2_deep_find(fd, info, filename, ind)) {
 					free(name);				
 					return 1;
 				}
