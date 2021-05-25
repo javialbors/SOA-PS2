@@ -1,8 +1,13 @@
 #include "ext2.h"
 
-void EXT2_find(int fd, ext_info info, char *filename) {
+void EXT2_find(int fd, ext_info info, char *filename, int inode) {
+	if (!EXT2_deep_find(fd, info, filename, inode, 0)) {
+		write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+	}
+}
+
+int EXT2_deep_find(int fd, ext_info info, char *filename, int inode, int level) {
 	
-	int inode = 2;
 	int block_group = (inode-1) / info.inodes_per_group;
 	int inode_index = (inode-1) % info.inodes_per_group;
 	int group_base_offset = block_group * (info.blocks_per_group * info.block_size);
@@ -28,20 +33,20 @@ void EXT2_find(int fd, ext_info info, char *filename) {
 	uint16_t rec_len = 0;
 
 	do {
-		lseek(fd, group_base_offset + inode_data_block + rec_len, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len, SEEK_SET);
 		uint32_t ind;
 		read(fd, &ind, 4);
 
-		lseek(fd, group_base_offset + inode_data_block + rec_len + 6, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len + 6, SEEK_SET);
 		uint8_t name_len;	
 		read(fd, &name_len, 1);
 
-		lseek(fd, group_base_offset + inode_data_block + rec_len + 7, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len + 7, SEEK_SET);
 		uint8_t filetype;
 		read(fd, &filetype, 1);
 
 		char *name = malloc(name_len + 1);
-		lseek(fd, group_base_offset + inode_data_block + rec_len + 8, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len + 8, SEEK_SET);
 		read(fd, name, name_len);
 		name[name_len] = '\0';
 		
@@ -50,20 +55,28 @@ void EXT2_find(int fd, ext_info info, char *filename) {
 				char output[39];
 				sprintf(output, "File found. Occupies %d bytes\n", get_inode_size(fd, info, ind));
 				write(1, output, strlen(output));
-				return;
+				free(name);
+				return 1;
+			}
+		} else if (filetype == EXT2_FT_DIR) {
+			if (strcmp(name, ".") && strcmp(name, "..")) {
+				if (EXT2_deep_find(fd, info, filename, ind, level+1)) {
+					free(name);				
+					return 1;
+				}
 			}
 		}
-
+		
 		free(name);
 		
-		lseek(fd, group_base_offset + inode_data_block + rec_len + 4, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len + 4, SEEK_SET);
 		uint16_t rec;
 		read(fd, &rec, 2);
 		
 		rec_len += rec;
 	} while(rec_len < info.block_size);
 
-	write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+	return 0;
 }
 
 uint32_t get_inode_size(int fd, ext_info info, int inode) {
@@ -231,6 +244,10 @@ ext_info EXT2_info(int fd, int flag) {
 
 		write(1, "\n\n", 2);
 	}
+
+	free(last_mount);
+	free(last_write);
+	free(last_check);
 
 	return info;
 }

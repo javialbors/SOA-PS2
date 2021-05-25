@@ -12,7 +12,7 @@ int command_value(char *input_command);
 int file_exists(char *filename);
 
 int main(int argc, char **argv) {
-	
+
 	if (argc < 2) {
 		write(1, "ERROR - Too few arguments\n", strlen("ERROR - Too few arguments\n"));
 		return -1;
@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
 
 					ext_info ext = EXT2_info(fd2, EXT_CHECK);
 					if (!ext.error) {
-						EXT2_find(fd2, ext, argv[3]);
+						EXT2_find(fd2, ext, argv[3], ROOT_INODE);
 						close(fd2);
 					} else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
 				}
