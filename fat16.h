@@ -8,6 +8,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define FAT_ENTRY 32 
+#define FAT_FILE 32
+#define FAT_SUBDIR 16
+#define FAT_LONG_NAME 15
+
 enum {
 	FAT_SHOW = 1,
 	FAT_CHECK = 2
@@ -28,6 +33,7 @@ typedef struct {
 
 fat_info FAT_info(int fd, int flag);
 void FAT_find(int fd, fat_info info, char *filename);
+int FAT_deep_find(int fd, fat_info info, char *filename, int base_offset, int cluster_offset);
 void reformat (char *file);
 
 #endif
