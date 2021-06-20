@@ -2,41 +2,81 @@
 
 void FAT_find(int fd, fat_info info, char *filename) {
 	int base_offset = (info.reserved + (info.nfats * info.sectors_per_fat)) * info.sector_size;
-	int max_offset = info.max_root_entries  * 32;
+	
+	if (!FAT_deep_find(fd, info, filename, base_offset, base_offset)) {
+		write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+	}
+}
 
+int FAT_deep_find(int fd, fat_info info, char *filename, int base_offset, int cluster_offset) {
+	int max_offset = info.max_root_entries * FAT_ENTRY;
+		
 	int current = 0;
 	int i=0;
 	do {
 		char file[9];
-		lseek(fd, base_offset + (32*(i)), SEEK_SET);
+		lseek(fd, cluster_offset + (FAT_ENTRY*i), SEEK_SET);
 		read(fd, file, 8);
 		file[8] = '\0';
-
-		char ext[4];
-		lseek(fd, base_offset + (32*(i++)), SEEK_SET);
-		read(fd, ext, 3);
-		ext[3] = '\0';
-
-		reformat(file);
-
-		char file_with_ext[13];
-		sprintf(file_with_ext, "%s.%s", file, ext);
 		
-		if (!strcmp(file_with_ext, filename)) {
-			uint32_t file_size;
-			lseek(fd, base_offset + (32*(i-1)) + 28, SEEK_SET);
-			read(fd, &file_size, 4);
+		reformat(file);
+		
+		uint8_t attribute;
+		lseek(fd, cluster_offset + (FAT_ENTRY*i) + 11, SEEK_SET);
+		read(fd, &attribute, 1);
+		
+		char file_with_ext[13];
 
-			char output[39];
-			sprintf(output, "File found. Occupies %d bytes\n", file_size);
-			write(1, output, strlen(output));
-			return;
+		if (attribute == 0) break;
+		
+		if (attribute == FAT_LONG_NAME) {
+			i++;
+			current += FAT_ENTRY;
+			continue;
 		}
+		
+		if (attribute == FAT_FILE || attribute == FAT_SUBDIR) {
+			
+			uint16_t cluster;
+			lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + 26, SEEK_SET);
+			read(fd, &cluster, 2);
 
-		current += 32;	
+			int data_offset = ((base_offset / info.sector_size) + info.sectors_per_fat + ((cluster - 2) * info.sectors_per_cluster)) * info.sector_size;
+
+			if (attribute == FAT_FILE) {
+				char ext[4];
+				lseek(fd, cluster_offset + (FAT_ENTRY*i) + 8, SEEK_SET);
+				read(fd, ext, 3);
+				ext[3] = '\0';
+			
+				reformat(ext);
+				if (strcmp(ext, "")) sprintf(file_with_ext, "%s.%s", file, ext);
+				else (strcpy(file_with_ext, file));
+				
+				if (!strcmp(file_with_ext, filename)) {
+					uint32_t file_size;
+					lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + 28, SEEK_SET);
+					read(fd, &file_size, 4);
+
+					char output[39];
+					sprintf(output, "File found. Occupies %d bytes\n", file_size);
+					write(1, output, strlen(output));
+					return 1;
+				}
+			} 
+		
+			if (attribute == FAT_SUBDIR) {
+				if (strcmp(file, ".") && strcmp(file, "..")) {
+					if (FAT_deep_find(fd, info, filename, base_offset, data_offset)) return 1;
+				}	
+			}
+		}
+		
+		i++;
+		current += FAT_ENTRY;	
 	} while (current < max_offset);
 	
-	write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+	return 0;
 }
 
 fat_info FAT_info(int fd, int flag) {
@@ -124,7 +164,7 @@ fat_info FAT_info(int fd, int flag) {
 }
 
 void reformat(char *file) {
-	for (int i=0; i<strlen(file); i++) {
+	for (int i=0; i<8; i++) {
 		if (file[i] == ' ') {
 			file[i] = '\0';
 			return;

@@ -7,3 +7,5 @@ http://www.science.unitn.it/~fiorella/guidelinux/tlk/node100.html
 https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Directory_entry
 https://www.ntfs.com/fat-root.htm
 https://www.ntfs.com/fat-folder-structure.htm
+
+https://www.youtube.com/watch?v=q_e0f5H_UPY&ab_channel=Adonbilivit213Adonbilivit213
