@@ -7,6 +7,10 @@
 #include "fat16.h"
 #include "ext2.h"
 
+#define INFO_CMD 0
+#define FIND_CMD 1
+#define DELETE_CMD 2
+
 int check_args(int input_args, int num_args);
 int command_value(char *input_command);
 int file_exists(char *filename);
@@ -20,8 +24,7 @@ int main(int argc, char **argv) {
 
 	switch (command_value(argv[1])) {
 		
-		//info command
-		case 0:;
+		case INFO_CMD:;
 
 			if (check_args(argc, 1)) {
 				if (check_args(argc, 1) == -1) {
@@ -50,16 +53,15 @@ int main(int argc, char **argv) {
 			}
 		break;
 
-		//find command
-		case 1:;
+		case FIND_CMD:;
 			
 			if (check_args(argc, 2)) {
 				if (check_args(argc, 2) == -1) {
 					write(1, "ERROR - Too few arguments for command '/find'.\n", strlen("ERROR - Too few arguments for command '/find'.\n"));
-					write(1, "Usage:\n\t'shooter /info [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /info [file_system] [file_name]'\n\n"));
+					write(1, "Usage:\n\t'shooter /find [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /find [file_system] [file_name]'\n\n"));
 				} else {
-					write(1, "ERROR - Too many arguments for command '/info'.\n", strlen("ERROR - Too many arguments for command '/info'.\n"));
-					write(1, "Usage:\n\t'shooter /info [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /info [file_system] [file_name]'\n\n"));
+					write(1, "ERROR - Too many arguments for command '/find'.\n", strlen("ERROR - Too many arguments for command '/find'.\n"));
+					write(1, "Usage:\n\t'shooter /find [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /find [file_system] [file_name]'\n\n"));
 				}
 
 				break;
@@ -78,6 +80,38 @@ int main(int argc, char **argv) {
 					if (!ext.error) {
 						EXT2_find(fd2, ext, argv[3], ROOT_INODE);
 						close(fd2);
+					} else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
+				}
+			}
+		break;
+		
+		case DELETE_CMD:;
+		
+			if (check_args(argc, 2)) {
+				if (check_args(argc, 2) == -1) {
+					write(1, "ERROR - Too few arguments for command '/delete'.\n", strlen("ERROR - Too few arguments for command '/delete'.\n"));
+					write(1, "Usage:\n\t'shooter /delete [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /delete [file_system] [file_name]'\n\n"));
+				} else {
+					write(1, "ERROR - Too many arguments for command '/delete'.\n", strlen("ERROR - Too many arguments for command '/delete'.\n"));
+					write(1, "Usage:\n\t'shooter /delete [file_system] [file_name]'\n\n", strlen("Usage:\n\t'shooter /delete [file_system] [file_name]'\n\n"));
+				}
+
+				break;
+			}
+
+			int fd3 = file_exists(argv[2]);
+
+			if (fd3 != -1) {
+				fat_info fat = FAT_info(fd3, FAT_CHECK);
+				if (!fat.error) {
+					//FAT_delete
+					close(fd3);
+				} else {
+					
+					ext_info ext = EXT2_info(fd3, EXT_CHECK);
+					if (!ext.error) {
+						//EXT_delete
+						close(fd3);
 					} else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
 				}
 			}
@@ -104,8 +138,9 @@ int check_args(int input_args, int num_args) {
 
 int command_value(char *input_command) {
 
-	if (!strcmp(input_command, "/info")) return 0;
-	if (!strcmp(input_command, "/find")) return 1;
+	if (!strcmp(input_command, "/info")) return INFO_CMD;
+	if (!strcmp(input_command, "/find")) return FIND_CMD;
+	if (!strcmp(input_command, "/delete")) return DELETE_CMD;
 
 	return -1;
 }
