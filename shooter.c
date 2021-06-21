@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 			if (fd2 != -1) {
 				fat_info fat = FAT_info(fd2, FAT_CHECK);
 				if (!fat.error) {
-					FAT_find(fd2, fat, argv[3]);
+					FAT_find(fd2, fat, argv[3], FAT_SHOW);
 					close(fd2);
 				} else {
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
 			if (fd3 != -1) {
 				fat_info fat = FAT_info(fd3, FAT_CHECK);
 				if (!fat.error) {
-					//FAT_delete
+					FAT_delete(fd3, fat, argv[3]);
 					close(fd3);
 				} else {
 					
@@ -146,7 +146,7 @@ int command_value(char *input_command) {
 }
 
 int file_exists (char *filename) {
-	int fd = open(filename, O_RDONLY);
+	int fd = open(filename, O_RDWR);
 
 	if (fd == -1) {
 		char *buffer;

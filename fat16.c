@@ -1,14 +1,34 @@
 #include "fat16.h"
 
-void FAT_find(int fd, fat_info info, char *filename) {
-	int base_offset = (info.reserved + (info.nfats * info.sectors_per_fat)) * info.sector_size;
+void FAT_delete(int fd, fat_info info, char *filename) {
+	fat_file_info file_info = FAT_find(fd, info, filename, FAT_CHECK);
 	
-	if (!FAT_deep_find(fd, info, filename, base_offset, base_offset)) {
-		write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+	if (file_info.found) {
+		int e5 = FAT_DELETED_FILE;
+		lseek(fd, file_info.fat_location, SEEK_SET);
+		write(fd, &e5, 1);
+
+		char *output;
+		output = malloc(strlen("File '' has been removed\n") + strlen(filename));
+		sprintf(output, "File '%s' has been removed\n", filename);
+		write(1, output, strlen(output));
+		free(output);
 	}
 }
 
-int FAT_deep_find(int fd, fat_info info, char *filename, int base_offset, int cluster_offset) {
+fat_file_info FAT_find(int fd, fat_info info, char *filename, int mode) {
+	int base_offset = (info.reserved + (info.nfats * info.sectors_per_fat)) * info.sector_size;
+	
+	fat_file_info file_info = FAT_deep_find(fd, info, filename, base_offset, base_offset, mode);
+
+	if (!file_info.found) {
+		write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+	}
+
+	return file_info;
+}
+
+fat_file_info FAT_deep_find(int fd, fat_info info, char *filename, int base_offset, int cluster_offset, int mode) {
 	int max_offset = info.max_root_entries * FAT_ENTRY;
 		
 	int current = 0;
@@ -19,8 +39,14 @@ int FAT_deep_find(int fd, fat_info info, char *filename, int base_offset, int cl
 		read(fd, file, 8);
 		file[8] = '\0';
 		
+		if (file[0] == FAT_DELETED_FILE) {
+			i++;
+			current += FAT_ENTRY;
+			continue;
+		}
+
 		reformat(file);
-		
+
 		uint8_t attribute;
 		lseek(fd, cluster_offset + (FAT_ENTRY*i) + 11, SEEK_SET);
 		read(fd, &attribute, 1);
@@ -54,20 +80,29 @@ int FAT_deep_find(int fd, fat_info info, char *filename, int base_offset, int cl
 				else (strcpy(file_with_ext, file));
 				
 				if (!strcmp(file_with_ext, filename)) {
-					uint32_t file_size;
-					lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + 28, SEEK_SET);
-					read(fd, &file_size, 4);
+					if (mode == FAT_SHOW) {
+						uint32_t file_size;
+						lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + 28, SEEK_SET);
+						read(fd, &file_size, 4);
 
-					char output[39];
-					sprintf(output, "File found. Occupies %d bytes\n", file_size);
-					write(1, output, strlen(output));
-					return 1;
+						char output[39];
+						sprintf(output, "File found. Occupies %d bytes\n", file_size);
+						write(1, output, strlen(output));
+					}
+
+					fat_file_info file_info;
+					file_info.found = 1;
+					file_info.fat_location = cluster_offset + (FAT_ENTRY*i);
+
+					return file_info;
 				}
 			} 
 		
 			if (attribute == FAT_SUBDIR) {
 				if (strcmp(file, ".") && strcmp(file, "..")) {
-					if (FAT_deep_find(fd, info, filename, base_offset, data_offset)) return 1;
+					
+					fat_file_info file_info = FAT_deep_find(fd, info, filename, base_offset, data_offset, mode);
+					if (file_info.found) return file_info;
 				}	
 			}
 		}
@@ -76,7 +111,10 @@ int FAT_deep_find(int fd, fat_info info, char *filename, int base_offset, int cl
 		current += FAT_ENTRY;	
 	} while (current < max_offset);
 	
-	return 0;
+	fat_file_info file_info;
+	file_info.found = 0;
+
+	return file_info;
 }
 
 fat_info FAT_info(int fd, int flag) {
