@@ -1,12 +1,34 @@
 #include "ext2.h"
 
-void EXT2_find(int fd, ext_info info, char *filename, int inode) {
-	if (!EXT2_deep_find(fd, info, filename, inode)) {
-		write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+void EXT2_delete(int fd, ext_info info, char *filename) {
+	
+	ext_file_info file_info = EXT2_find(fd, info, filename, EXT_CHECK);
+
+	if (file_info.found) {
+		int deleted = 0;
+		lseek(fd, file_info.ext_dir_entry, SEEK_SET);
+		write(fd, &deleted, 4);
+
+		char *output;
+		output = malloc(strlen("File '' has been removed\n") + strlen(filename));
+		sprintf(output, "File '%s' has been removed\n", filename);
+		write(1, output, strlen(output));
+		free(output);
 	}
 }
 
-int EXT2_deep_find(int fd, ext_info info, char *filename, int inode) {
+ext_file_info EXT2_find(int fd, ext_info info, char *filename, int mode) {
+	
+	ext_file_info file_info = EXT2_deep_find(fd, info, filename, ROOT_INODE, mode);
+
+	if (!file_info.found) {
+		write(1, "ERROR - File not found\n", strlen("ERROR - File not found\n"));
+	}
+
+	return file_info;
+}
+
+ext_file_info EXT2_deep_find(int fd, ext_info info, char *filename, int inode, int mode) {
 	
 	int block_group = (inode-1) / info.inodes_per_group;
 	int inode_index = (inode-1) % info.inodes_per_group;
@@ -20,11 +42,6 @@ int EXT2_deep_find(int fd, ext_info info, char *filename, int inode) {
 	int inode_table = group_base_offset + (bg_inode_table_block * info.block_size);
 	int inode_offset = inode_table + (inode_index * info.inode_size);
 	
-	uint32_t i_blocks;
-	lseek(fd, inode_offset + 28, SEEK_SET);
-	read(fd, &i_blocks, 4);
-
-	//Iterar segun i_blocks?
 	uint32_t data_block;
 	lseek(fd, inode_offset + 40 /*+ (i*4)*/, SEEK_SET);
 	read(fd, &data_block, 4);
@@ -36,6 +53,16 @@ int EXT2_deep_find(int fd, ext_info info, char *filename, int inode) {
 		lseek(fd, inode_data_block + rec_len, SEEK_SET);
 		uint32_t ind;
 		read(fd, &ind, 4);
+
+		if (ind == 0) {
+			lseek(fd, inode_data_block + rec_len + 4, SEEK_SET);
+			uint16_t rec;
+			read(fd, &rec, 2);
+
+			rec_len += rec;
+
+			continue;
+		}
 
 		lseek(fd, inode_data_block + rec_len + 6, SEEK_SET);
 		uint8_t name_len;	
@@ -52,17 +79,28 @@ int EXT2_deep_find(int fd, ext_info info, char *filename, int inode) {
 		
 		if (filetype == EXT2_FT_FILE) {
 			if (!strcmp(name, filename)) {
-				char output[39];
-				sprintf(output, "File found. Occupies %d bytes\n", get_inode_size(fd, info, ind));
-				write(1, output, strlen(output));
+				if (mode == EXT_SHOW) {
+					char output[39];
+					sprintf(output, "File found. Occupies %d bytes\n", get_inode_size(fd, info, ind));
+					write(1, output, strlen(output));
+				}
+		
 				free(name);
-				return 1;
+				
+				ext_file_info file_info;
+				file_info.found = 1;
+				file_info.ext_dir_entry = inode_data_block + rec_len;
+		
+				return file_info;
 			}
 		} else if (filetype == EXT2_FT_DIR) {
 			if (strcmp(name, ".") && strcmp(name, "..")) {
-				if (EXT2_deep_find(fd, info, filename, ind)) {
+	
+				ext_file_info file_info = EXT2_deep_find(fd, info, filename, ind, mode);
+				if (file_info.found) {
 					free(name);				
-					return 1;
+					
+					return file_info;
 				}
 			}
 		}
@@ -75,8 +113,11 @@ int EXT2_deep_find(int fd, ext_info info, char *filename, int inode) {
 		
 		rec_len += rec;
 	} while(rec_len < info.block_size);
+	
+	ext_file_info file_info;
+	file_info.found = 0;
 
-	return 0;
+	return file_info;
 }
 
 uint32_t get_inode_size(int fd, ext_info info, int inode) {

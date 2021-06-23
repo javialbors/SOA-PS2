@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 
 					ext_info ext = EXT2_info(fd2, EXT_CHECK);
 					if (!ext.error) {
-						EXT2_find(fd2, ext, argv[3], ROOT_INODE);
+						EXT2_find(fd2, ext, argv[3], EXT_SHOW);
 						close(fd2);
 					} else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
 				}
@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
 					
 					ext_info ext = EXT2_info(fd3, EXT_CHECK);
 					if (!ext.error) {
-						//EXT_delete
+						EXT2_delete(fd3, ext, argv[3]);
 						close(fd3);
 					} else write(1, "ERROR - File system is not EXT2 nor FAT16\n", strlen("ERROR - File system is not EXT2 nor FAT16\n"));
 				}
