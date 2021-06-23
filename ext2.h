@@ -43,8 +43,14 @@ typedef struct {
 	uint32_t last_check;
 }ext_info;
 
-void EXT2_find(int fd, ext_info info, char *filename, int inode);
-int EXT2_deep_find(int fd, ext_info info, char *filename, int inode);
+typedef struct {
+	int found;
+	int ext_dir_entry;
+}ext_file_info;
+
+void EXT2_delete(int fd, ext_info info, char *filename);
+ext_file_info EXT2_find(int fd, ext_info info, char *filename, int mode);
+ext_file_info EXT2_deep_find(int fd, ext_info info, char *filename, int inode, int mode);
 uint32_t get_inode_size(int fd, ext_info info, int inode);
 ext_info EXT2_info(int fd, int flag);
 char * unixt_to_date(uint32_t time);
