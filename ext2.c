@@ -35,7 +35,7 @@ ext_file_info EXT2_deep_find(int fd, ext_info info, char *filename, int inode, i
 	int group_base_offset = block_group * (info.blocks_per_group * info.block_size);
 	int bg_offset = group_base_offset + (SUPERBLOCK*2);
 	
-	lseek(fd, bg_offset + 8, SEEK_SET);
+	lseek(fd, bg_offset + BG_INODE_TABLE, SEEK_SET);
 	uint32_t bg_inode_table_block;
 	read(fd, &bg_inode_table_block, 4);
 	
@@ -43,7 +43,7 @@ ext_file_info EXT2_deep_find(int fd, ext_info info, char *filename, int inode, i
 	int inode_offset = inode_table + (inode_index * info.inode_size);
 	
 	uint32_t data_block;
-	lseek(fd, inode_offset + 40 /*+ (i*4)*/, SEEK_SET);
+	lseek(fd, inode_offset + I_BLOCK, SEEK_SET);
 	read(fd, &data_block, 4);
 		
 	int inode_data_block = data_block * info.block_size;
@@ -55,7 +55,7 @@ ext_file_info EXT2_deep_find(int fd, ext_info info, char *filename, int inode, i
 		read(fd, &ind, 4);
 
 		if (ind == 0) {
-			lseek(fd, inode_data_block + rec_len + 4, SEEK_SET);
+			lseek(fd, inode_data_block + rec_len + DIR_REC, SEEK_SET);
 			uint16_t rec;
 			read(fd, &rec, 2);
 
@@ -64,16 +64,16 @@ ext_file_info EXT2_deep_find(int fd, ext_info info, char *filename, int inode, i
 			continue;
 		}
 
-		lseek(fd, inode_data_block + rec_len + 6, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len + DIR_NAME_L, SEEK_SET);
 		uint8_t name_len;	
 		read(fd, &name_len, 1);
 
-		lseek(fd, inode_data_block + rec_len + 7, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len + DIR_TYPE, SEEK_SET);
 		uint8_t filetype;
 		read(fd, &filetype, 1);
 
 		char *name = malloc(name_len + 1);
-		lseek(fd, inode_data_block + rec_len + 8, SEEK_SET);
+		lseek(fd, inode_data_block + rec_len + DIR_NAME, SEEK_SET);
 		read(fd, name, name_len);
 		name[name_len] = '\0';
 		
@@ -151,7 +151,7 @@ ext_info EXT2_info(int fd, int flag) {
 	}
 	
 	uint16_t fs;
-	lseek(fd, SUPERBLOCK + 56, SEEK_SET);
+	lseek(fd, EXT_MAGIC, SEEK_SET);
 	read(fd, &fs, 2);
 
 	if (fs != MAGIC_NUMBER) {
@@ -164,82 +164,94 @@ ext_info EXT2_info(int fd, int flag) {
 
 	lseek(fd, SUPERBLOCK, SEEK_SET);
 	read(fd, &info.inodes_count, 4);
-	char inodes_count[11];
-	sprintf(inodes_count, "%d", info.inodes_count);
 
-	lseek(fd, SUPERBLOCK + 4, SEEK_SET);
+	lseek(fd, EXT_BLOCKS_COUNT, SEEK_SET);
 	read(fd, &info.blocks_count, 4);
-	char blocks_count[11];
-	sprintf(blocks_count, "%d", info.blocks_count);
 
-	lseek(fd, SUPERBLOCK + 8, SEEK_SET);
+	lseek(fd, EXT_R_BLOCKS_COUNT, SEEK_SET);
 	read(fd, &info.reserved_blocks, 4);
-	char reserved_blocks[11];
-	sprintf(reserved_blocks, "%d", info.reserved_blocks);
 
-	lseek(fd, SUPERBLOCK + 12, SEEK_SET);
+	lseek(fd, EXT_FREE_BLOCKS, SEEK_SET);
 	read(fd, &info.free_blocks, 4);
-	char free_blocks[11];
-	sprintf(free_blocks, "%d", info.free_blocks);
 
-	lseek(fd, SUPERBLOCK + 16, SEEK_SET);
+	lseek(fd, EXT_FREE_INODES, SEEK_SET);
 	read(fd, &info.free_inodes, 4);
-	char free_inodes[11];
-	sprintf(free_inodes, "%d", info.free_inodes);
 
-	lseek(fd, SUPERBLOCK + 32, SEEK_SET);
+	lseek(fd, EXT_BPG, SEEK_SET);
 	read(fd, &info.blocks_per_group, 4);
-	char blocks_per_group[11];
-	sprintf(blocks_per_group, "%d", info.blocks_per_group);
 
-	lseek(fd, SUPERBLOCK + 36, SEEK_SET);
+	lseek(fd, EXT_FPG, SEEK_SET);
 	read(fd, &info.frags_per_group, 4);
-	char frags_per_group[11];
-	sprintf(frags_per_group, "%d", info.frags_per_group);
 
-	lseek(fd, SUPERBLOCK + 40, SEEK_SET);
+	lseek(fd, EXT_IPG, SEEK_SET);
 	read(fd, &info.inodes_per_group, 4);
-	char inodes_per_group[11];
-	sprintf(inodes_per_group, "%d", info.inodes_per_group);
 	
-	lseek(fd, SUPERBLOCK + 84, SEEK_SET);
+	lseek(fd, EXT_FIRST_INODE, SEEK_SET);
 	read(fd, &info.first_inode, 4);
-	char first_inode[11];
-	sprintf(first_inode, "%d", info.first_inode);
 
-	lseek(fd, SUPERBLOCK + 88, SEEK_SET);
+	lseek(fd, EXT_INODE_SIZE, SEEK_SET);
 	read(fd, &info.inode_size, 2);
-	char inode_size[6];
-	sprintf(inode_size, "%d", info.inode_size);
 
-	lseek(fd, SUPERBLOCK + 24, SEEK_SET);
+	lseek(fd, EXT_BLOCK_SIZE, SEEK_SET);
 	read(fd, &info.block_size, 4);
 	info.block_size = 1024 << info.block_size;
-	char block_size[11];
-	sprintf(block_size, "%d", info.block_size);
 	
-	lseek(fd, SUPERBLOCK + 20, SEEK_SET);
+	lseek(fd, EXT_FIRST_BLOCK, SEEK_SET);
 	read(fd, &info.first_block, 4);
-	char first_block[11];
-	sprintf(first_block, "%d", info.first_block);
 
-	lseek(fd, SUPERBLOCK + 120, SEEK_SET);
+	lseek(fd, EXT_VOLUME_NAME, SEEK_SET);
 	read(fd, info.volume_name, 16);
-//	volume_name[16] = '\0';
 	
-	lseek(fd, SUPERBLOCK + 44, SEEK_SET);
+	lseek(fd, EXT_LAST_MOUNT, SEEK_SET);
 	read(fd, &info.last_mount, 4);
-	char *last_mount = unixt_to_date(info.last_mount);
 
-	lseek(fd, SUPERBLOCK + 48, SEEK_SET);
+	lseek(fd, EXT_LAST_WRITE, SEEK_SET);
 	read(fd, &info.last_write, 4);
-	char *last_write = unixt_to_date(info.last_write);
 	
-	lseek(fd, SUPERBLOCK + 64, SEEK_SET);
+	lseek(fd, EXT_LAST_CHECK, SEEK_SET);
 	read(fd, &info.last_check, 4);
-	char *last_check = unixt_to_date(info.last_check);
 	
 	if (flag == EXT_SHOW) {
+		char inodes_count[11];
+		sprintf(inodes_count, "%d", info.inodes_count);
+
+		char blocks_count[11];
+		sprintf(blocks_count, "%d", info.blocks_count);
+
+		char reserved_blocks[11];
+		sprintf(reserved_blocks, "%d", info.reserved_blocks);
+
+		char free_blocks[11];
+		sprintf(free_blocks, "%d", info.free_blocks);
+
+		char free_inodes[11];
+		sprintf(free_inodes, "%d", info.free_inodes);
+
+		char blocks_per_group[11];
+		sprintf(blocks_per_group, "%d", info.blocks_per_group);
+
+		char frags_per_group[11];
+		sprintf(frags_per_group, "%d", info.frags_per_group);
+
+		char inodes_per_group[11];
+		sprintf(inodes_per_group, "%d", info.inodes_per_group);
+
+		char first_inode[11];
+		sprintf(first_inode, "%d", info.first_inode);
+
+		char inode_size[6];
+		sprintf(inode_size, "%d", info.inode_size);
+
+		char block_size[11];
+		sprintf(block_size, "%d", info.block_size);
+
+		char first_block[11];
+		sprintf(first_block, "%d", info.first_block);
+
+		char *last_mount = unixt_to_date(info.last_mount);
+		char *last_write = unixt_to_date(info.last_write);
+		char *last_check = unixt_to_date(info.last_check);
+
 		write(1, "\n------ Filesystem Information ------\n\n", strlen("\n------ Filesystem Information ------\n\n"));
 	
 		write(1, "Filesystem: ", strlen("Filesystem: "));
@@ -284,11 +296,11 @@ ext_info EXT2_info(int fd, int flag) {
 		write(1, last_write, strlen(last_write));
 
 		write(1, "\n\n", 2);
+		
+		free(last_mount);
+		free(last_write);
+		free(last_check);
 	}
-
-	free(last_mount);
-	free(last_write);
-	free(last_check);
 
 	return info;
 }

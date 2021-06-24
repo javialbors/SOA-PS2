@@ -48,7 +48,7 @@ fat_file_info FAT_deep_find(int fd, fat_info info, char *filename, int base_offs
 		reformat(file);
 
 		uint8_t attribute;
-		lseek(fd, cluster_offset + (FAT_ENTRY*i) + 11, SEEK_SET);
+		lseek(fd, cluster_offset + (FAT_ENTRY*i) + ENTRY_ATTRIBUTE, SEEK_SET);
 		read(fd, &attribute, 1);
 		
 		char file_with_ext[13];
@@ -64,14 +64,14 @@ fat_file_info FAT_deep_find(int fd, fat_info info, char *filename, int base_offs
 		if (attribute == FAT_FILE || attribute == FAT_SUBDIR) {
 			
 			uint16_t cluster;
-			lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + 26, SEEK_SET);
+			lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + ENTRY_CLUSTER_START, SEEK_SET);
 			read(fd, &cluster, 2);
 
 			int data_offset = ((base_offset / info.sector_size) + info.sectors_per_fat + ((cluster - 2) * info.sectors_per_cluster)) * info.sector_size;
 
 			if (attribute == FAT_FILE) {
 				char ext[4];
-				lseek(fd, cluster_offset + (FAT_ENTRY*i) + 8, SEEK_SET);
+				lseek(fd, cluster_offset + (FAT_ENTRY*i) + ENTRY_EXTENSION, SEEK_SET);
 				read(fd, ext, 3);
 				ext[3] = '\0';
 			
@@ -82,7 +82,7 @@ fat_file_info FAT_deep_find(int fd, fat_info info, char *filename, int base_offs
 				if (!strcmp(file_with_ext, filename)) {
 					if (mode == FAT_SHOW) {
 						uint32_t file_size;
-						lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + 28, SEEK_SET);
+						lseek(fd, cluster_offset + (FAT_ENTRY*(i)) + ENTRY_SIZE, SEEK_SET);
 						read(fd, &file_size, 4);
 
 						char output[39];
@@ -125,8 +125,8 @@ fat_info FAT_info(int fd, int flag) {
 		info.error = 1;
 		return info;
 	}
-
-    lseek(fd, 54, SEEK_SET);
+    
+	lseek(fd, FAT_SYSTYPE, SEEK_SET);
     read(fd, info.filesystem, 8);
 	info.filesystem[8] = '\0';
 		
@@ -137,45 +137,51 @@ fat_info FAT_info(int fd, int flag) {
 
 	info.error = 0;
 	
-	lseek(fd, 3, SEEK_SET);
+	lseek(fd, FAT_NAME, SEEK_SET);
     read(fd, info.system_name, 8);
 	info.system_name[8] = '\0';
     
-    lseek(fd, 11, SEEK_SET);
+    lseek(fd, FAT_BPS, SEEK_SET);
     read(fd, &info.sector_size, 2);
-	char sector_size[6];
-    sprintf(sector_size, "%d", info.sector_size);
 
-    lseek(fd, 13, SEEK_SET);
+    lseek(fd, FAT_SPC, SEEK_SET);
     read(fd, &info.sectors_per_cluster, 1);
-	char sectors_per_cluster[4];
-    sprintf(sectors_per_cluster, "%d", info.sectors_per_cluster);
 
-    lseek(fd, 14, SEEK_SET);
+    lseek(fd, FAT_RESERVED, SEEK_SET);
     read(fd, &info.reserved, 2);
-	char reserved[6];
-    sprintf(reserved, "%d", info.reserved);
 
-    lseek(fd, 16, SEEK_SET);
+    lseek(fd, FAT_NFATS, SEEK_SET);
     read(fd, &info.nfats, 1);
-	char nfats[4];
-    sprintf(nfats, "%d", info.nfats);
 
-    lseek(fd, 17, SEEK_SET);
+    lseek(fd, FAT_ROOT_ENTRIES, SEEK_SET);
     read(fd, &info.max_root_entries, 2);
-	char max_root_entries[6];
-    sprintf(max_root_entries, "%d", info.max_root_entries);
 
-    lseek(fd, 22, SEEK_SET);
+    lseek(fd, FAT_SIZE, SEEK_SET);
     read(fd, &info.sectors_per_fat, 2);
-	char sectors_per_fat[6];
-    sprintf(sectors_per_fat, "%d", info.sectors_per_fat);
 
-    lseek(fd, 43, SEEK_SET);
+    lseek(fd, FAT_LABEL, SEEK_SET);
     read(fd, info.label, 11);
 	info.label[11] = '\0';
 	
 	if (flag == FAT_SHOW) {
+		char sector_size[6];
+	    sprintf(sector_size, "%d", info.sector_size);
+
+		char sectors_per_cluster[4];
+	    sprintf(sectors_per_cluster, "%d", info.sectors_per_cluster);
+
+		char reserved[6];
+	    sprintf(reserved, "%d", info.reserved);
+
+		char nfats[4];
+	    sprintf(nfats, "%d", info.nfats);
+
+		char max_root_entries[6];
+	    sprintf(max_root_entries, "%d", info.max_root_entries);
+
+		char sectors_per_fat[6];
+	    sprintf(sectors_per_fat, "%d", info.sectors_per_fat);
+
 	    write(1, "\n------ Filesystem Information ------\n\n", strlen("\n------ Filesystem Information ------\n\n"));
     	write(1, "Filesystem: ", strlen("Filesystem: "));
   		write(1, info.filesystem, strlen(info.filesystem));

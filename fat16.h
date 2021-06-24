@@ -8,6 +8,21 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define FAT_NAME 3
+#define FAT_BPS 11
+#define FAT_SPC 13
+#define FAT_RESERVED 14
+#define FAT_NFATS 16
+#define FAT_ROOT_ENTRIES 17
+#define FAT_SIZE 22
+#define FAT_LABEL 43
+#define FAT_SYSTYPE 54
+
+#define ENTRY_EXTENSION 0x08
+#define ENTRY_ATTRIBUTE 0x0B
+#define ENTRY_CLUSTER_START 0x1A
+#define ENTRY_SIZE 0x1C
+
 #define FAT_ENTRY 32 
 #define FAT_FILE 32
 #define FAT_SUBDIR 16
